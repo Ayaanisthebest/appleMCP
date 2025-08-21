@@ -1,3 +1,20 @@
+/**
+ * 🍎 Apple MCP Tools - Enhanced Edition
+ * 
+ * This enhanced version is based on the excellent work by the original supermemoryai/apple-mcp team:
+ * - Original Repository: https://github.com/supermemoryai/apple-mcp
+ * - Original Authors: @Dhravya, @jxnl, @calclavia, and the entire supermemory team
+ * - Enhanced by: @Ayaanisthebest (https://github.com/Ayaanisthebest)
+ * 
+ * Enhanced Features:
+ * - Improved tool descriptions with mandatory usage guidance
+ * - Better contact integration requirements
+ * - Enhanced notes tool with rich text support
+ * - Streamlined messages tool operations
+ * 
+ * License: MIT (see LICENSE file)
+ */
+
 import { type Tool } from "@modelcontextprotocol/sdk/types.js";
 
 const CONTACTS_TOOL: Tool = {

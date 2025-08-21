@@ -1,4 +1,27 @@
 #!/usr/bin/env node
+/**
+ * 🍎 Apple MCP Server - Enhanced Edition
+ * 
+ * This enhanced version is based on the excellent work by the original supermemoryai/apple-mcp team:
+ * - Original Repository: https://github.com/supermemoryai/apple-mcp
+ * - Original Authors: @Dhravya, @jxnl, @calclavia, and the entire supermemory team
+ * - Enhanced by: @Ayaanisthebest (https://github.com/Ayaanisthebest)
+ * 
+ * Enhanced Features:
+ * - Smart contact resolution in messages tool
+ * - Priority-based notes search with rich text support
+ * - Improved error handling and validation
+ * - Enhanced developer experience with debug logging
+ * - Better TypeScript interfaces and code organization
+ * 
+ * Original Features:
+ * - Full Apple ecosystem integration (Calendar, Contacts, Mail, Maps, Messages, Notes, Reminders)
+ * - Comprehensive testing suite
+ * - Professional documentation and examples
+ * 
+ * License: MIT (see LICENSE file)
+ */
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {

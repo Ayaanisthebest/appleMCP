@@ -1,3 +1,21 @@
+/**
+ * 🍎 Apple MCP Notes Utility - Enhanced Edition
+ * 
+ * This enhanced version is based on the excellent work by the original supermemoryai/apple-mcp team:
+ * - Original Repository: https://github.com/supermemoryai/apple-mcp
+ * - Original Authors: @Dhravya, @jxnl, @calclavia, and the entire supermemory team
+ * - Enhanced by: @Ayaanisthebest (https://github.com/Ayaanisthebest)
+ * 
+ * Enhanced Features:
+ * - Priority-based search (title vs content matches)
+ * - Rich text support with full formatting preservation
+ * - Enhanced search results with visual indicators
+ * - Note editing capabilities
+ * - Improved error handling and debug logging
+ * 
+ * License: MIT (see LICENSE file)
+ */
+
 import { runAppleScript } from "run-applescript";
 
 // Configuration
