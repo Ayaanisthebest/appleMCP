@@ -43,7 +43,7 @@
 		},
 		{
 			"name": "messages",
-			"description": "Interact with Apple Messages app - send, read, schedule messages and check unread messages"
+			"description": "Interact with Apple Messages app - send, read, schedule messages. You can provide either a contact name or phone number."
 		},
 		{
 			"name": "mail",

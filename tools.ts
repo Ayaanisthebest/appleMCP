@@ -2,13 +2,13 @@ import { type Tool } from "@modelcontextprotocol/sdk/types.js";
 
 const CONTACTS_TOOL: Tool = {
     name: "contacts",
-    description: "Search and retrieve contacts from Apple Contacts app",
+    description: "Search and retrieve contacts from Apple Contacts app. MANDATORY: Use this tool FIRST when user asks about messaging someone by name. This returns the real phone numbers needed for the messages tool.",
     inputSchema: {
       type: "object",
       properties: {
         name: {
           type: "string",
-          description: "Name to search for (optional - if not provided, returns all contacts). Can be partial name to search."
+          description: "Name to search for (optional - if not provided, returns all contacts). Can be partial name to search. REQUIRED step before using messages tool with a person's name."
         }
       }
     }
@@ -16,7 +16,7 @@ const CONTACTS_TOOL: Tool = {
   
   const NOTES_TOOL: Tool = {
     name: "notes", 
-    description: "Search, retrieve and create notes in Apple Notes app",
+    description: "Search, retrieve, and create notes in Apple Notes app. Search prioritizes note titles over content and returns full note content with rich text formatting. To update a note, create a new one with the same name. Supports tables, lists, headers, and all Apple Notes formatting.",
     inputSchema: {
       type: "object",
       properties: {
@@ -35,7 +35,7 @@ const CONTACTS_TOOL: Tool = {
         },
         body: {
           type: "string",
-          description: "Content of the note to create (required for create operation)"
+          description: "Content of the note to create (required for create operation). Supports rich text formatting including tables, lists, headers, and all Apple Notes features. Use markdown-style formatting or plain text."
         },
         folderName: {
           type: "string",
@@ -48,18 +48,22 @@ const CONTACTS_TOOL: Tool = {
   
   const MESSAGES_TOOL: Tool = {
     name: "messages",
-    description: "Interact with Apple Messages app - send, read, schedule messages and check unread messages",
+    description: "Interact with Apple Messages app - send, read, schedule messages. You can provide either a contact name or phone number. If you provide a name, the system will automatically look up their phone number.",
     inputSchema: {
       type: "object",
       properties: {
         operation: {
           type: "string",
-          description: "Operation to perform: 'send', 'read', 'schedule', or 'unread'",
-          enum: ["send", "read", "schedule", "unread"]
+          description: "Operation to perform: 'send', 'read', or 'schedule'",
+          enum: ["send", "read", "schedule"]
+        },
+        contactName: {
+          type: "string",
+          description: "Name of the contact (optional - if provided, phone number will be looked up automatically)"
         },
         phoneNumber: {
           type: "string",
-          description: "Phone number to send message to (required for send, read, and schedule operations)"
+          description: "Phone number (optional - if contactName is provided, this will be ignored and looked up automatically)"
         },
         message: {
           type: "string",
@@ -67,7 +71,7 @@ const CONTACTS_TOOL: Tool = {
         },
         limit: {
           type: "number",
-          description: "Number of messages to read (optional, for read and unread operations)"
+          description: "Number of messages to read (optional, for read operations)"
         },
         scheduledTime: {
           type: "string",

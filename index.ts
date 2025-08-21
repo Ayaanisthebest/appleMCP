@@ -192,9 +192,10 @@ function initServer() {
 		},
 	);
 
-	server.setRequestHandler(ListToolsRequestSchema, async () => ({
-		tools,
-	}));
+	server.setRequestHandler(ListToolsRequestSchema, async () => {
+		console.error("DEBUG: Available tools:", tools.map(t => t.name));
+		return { tools };
+	});
 
 	server.setRequestHandler(CallToolRequestSchema, async (request) => {
 		try {
@@ -297,7 +298,10 @@ function initServer() {
 											type: "text",
 											text: foundNotes.length
 												? foundNotes
-														.map((note) => `${note.name}:\n${note.content}`)
+														.map((note) => {
+															const priority = note.priority === "title" ? "🎯 TITLE MATCH" : "📝 CONTENT MATCH";
+															return `${priority}\n${note.name}:\n${note.content}`;
+														})
 														.join("\n\n")
 												: `No notes found for "${args.searchText}"`,
 										},
@@ -324,17 +328,23 @@ function initServer() {
 							}
 
 							case "create": {
+								console.error("DEBUG: Create case reached with args:", args);
+								
 								if (!args.title || !args.body) {
 									throw new Error(
 										"Title and body are required for create operation",
 									);
 								}
 
+								console.error("DEBUG: Calling createNote with:", args.title, args.body, args.folderName);
+								
 								const result = await notesModule.createNote(
 									args.title,
 									args.body,
 									args.folderName,
 								);
+
+								console.error("DEBUG: createNote result:", result);
 
 								return {
 									content: [
@@ -348,6 +358,8 @@ function initServer() {
 									isError: !result.success,
 								};
 							}
+
+
 
 							default:
 								throw new Error(`Unknown operation: ${operation}`);
@@ -371,22 +383,75 @@ function initServer() {
 						throw new Error("Invalid arguments for messages tool");
 					}
 
+					// Auto-resolve contact name to phone number if provided
+					let resolvedPhoneNumber = args.phoneNumber;
+					
+					if (args.contactName && !args.phoneNumber) {
+						try {
+							console.error(`DEBUG: Looking up contact name: ${args.contactName}`);
+							const contactsModule = await loadModule("contacts");
+							const numbers = await contactsModule.findNumber(args.contactName);
+							
+							if (numbers.length === 0) {
+								return {
+									content: [
+										{
+											type: "text",
+											text: `❌ Contact not found: "${args.contactName}". Please check the spelling or try a different name.`,
+										},
+									],
+									isError: true,
+								};
+							}
+							
+							// Parse phone numbers and prefer +1 format
+							const phoneStr = numbers[0];
+							const phoneNumbers = phoneStr.split(', ').map(p => p.trim());
+							// Prefer +1 format, otherwise use first available
+							resolvedPhoneNumber = phoneNumbers.find(p => p.startsWith('+')) || phoneNumbers[0];
+							console.error(`DEBUG: Resolved contact "${args.contactName}" to phone number: ${resolvedPhoneNumber}`);
+						} catch (error) {
+							return {
+								content: [
+									{
+										type: "text",
+										text: `❌ Error looking up contact "${args.contactName}": ${error instanceof Error ? error.message : String(error)}`,
+									},
+								],
+								isError: true,
+							};
+						}
+					}
+					
+					// Validate we have a phone number
+					if (!resolvedPhoneNumber) {
+						return {
+							content: [
+								{
+									type: "text",
+									text: `❌ No phone number provided. Please provide either a contactName or phoneNumber.`,
+								},
+							],
+							isError: true,
+						};
+					}
+
 					try {
 						const messageModule = await loadModule("message");
 
 						switch (args.operation) {
 							case "send": {
-								if (!args.phoneNumber || !args.message) {
+								if (!args.message) {
 									throw new Error(
-										"Phone number and message are required for send operation",
+										"Message is required for send operation",
 									);
 								}
-								await messageModule.sendMessage(args.phoneNumber, args.message);
+								await messageModule.sendMessage(resolvedPhoneNumber, args.message);
 								return {
 									content: [
 										{
 											type: "text",
-											text: `Message sent to ${args.phoneNumber}`,
+											text: `Message sent to ${resolvedPhoneNumber}`,
 										},
 									],
 									isError: false,
@@ -394,13 +459,8 @@ function initServer() {
 							}
 
 							case "read": {
-								if (!args.phoneNumber) {
-									throw new Error(
-										"Phone number is required for read operation",
-									);
-								}
 								const messages = await messageModule.readMessages(
-									args.phoneNumber,
+									resolvedPhoneNumber,
 									args.limit,
 								);
 								return {
@@ -423,13 +483,13 @@ function initServer() {
 							}
 
 							case "schedule": {
-								if (!args.phoneNumber || !args.message || !args.scheduledTime) {
+								if (!args.message || !args.scheduledTime) {
 									throw new Error(
-										"Phone number, message, and scheduled time are required for schedule operation",
+										"Message and scheduled time are required for schedule operation",
 									);
 								}
 								const scheduledMsg = await messageModule.scheduleMessage(
-									args.phoneNumber,
+									resolvedPhoneNumber,
 									args.message,
 									new Date(args.scheduledTime),
 								);
@@ -437,57 +497,14 @@ function initServer() {
 									content: [
 										{
 											type: "text",
-											text: `Message scheduled to be sent to ${args.phoneNumber} at ${scheduledMsg.scheduledTime}`,
+											text: `Message scheduled to be sent to ${resolvedPhoneNumber} at ${scheduledMsg.scheduledTime}`,
 										},
 									],
 									isError: false,
 								};
 							}
 
-							case "unread": {
-								const messages = await messageModule.getUnreadMessages(
-									args.limit,
-								);
 
-								// Look up contact names for all messages
-								const contactsModule = await loadModule("contacts");
-								const messagesWithNames = await Promise.all(
-									messages.map(async (msg) => {
-										// Only look up names for messages not from me
-										if (!msg.is_from_me) {
-											const contactName =
-												await contactsModule.findContactByPhone(msg.sender);
-											return {
-												...msg,
-												displayName: contactName || msg.sender, // Use contact name if found, otherwise use phone/email
-											};
-										}
-										return {
-											...msg,
-											displayName: "Me",
-										};
-									}),
-								);
-
-								return {
-									content: [
-										{
-											type: "text",
-											text:
-												messagesWithNames.length > 0
-													? `Found ${messagesWithNames.length} unread message(s):\n` +
-														messagesWithNames
-															.map(
-																(msg) =>
-																	`[${new Date(msg.date).toLocaleString()}] From ${msg.displayName}:\n${msg.content}`,
-															)
-															.join("\n\n")
-													: "No unread messages found",
-										},
-									],
-									isError: false,
-								};
-							}
 
 							default:
 								throw new Error(`Unknown operation: ${args.operation}`);
@@ -1383,7 +1400,8 @@ function isNotesArgs(args: unknown): args is {
 }
 
 function isMessagesArgs(args: unknown): args is {
-	operation: "send" | "read" | "schedule" | "unread";
+	operation: "send" | "read" | "schedule";
+	contactName?: string;
 	phoneNumber?: string;
 	message?: string;
 	limit?: number;
@@ -1391,11 +1409,11 @@ function isMessagesArgs(args: unknown): args is {
 } {
 	if (typeof args !== "object" || args === null) return false;
 
-	const { operation, phoneNumber, message, limit, scheduledTime } = args as any;
+	const { operation, contactName, phoneNumber, message, limit, scheduledTime } = args as any;
 
 	if (
 		!operation ||
-		!["send", "read", "schedule", "unread"].includes(operation)
+		!["send", "read", "schedule"].includes(operation)
 	) {
 		return false;
 	}
@@ -1404,18 +1422,21 @@ function isMessagesArgs(args: unknown): args is {
 	switch (operation) {
 		case "send":
 		case "schedule":
-			if (!phoneNumber || !message) return false;
+			if (!message) return false;
 			if (operation === "schedule" && !scheduledTime) return false;
 			break;
 		case "read":
-			if (!phoneNumber) return false;
+			// No additional validation needed - either contactName or phoneNumber will be resolved
 			break;
-		case "unread":
-			// No additional required fields
-			break;
+	}
+	
+	// Validate that at least one of contactName or phoneNumber is provided
+	if (!contactName && !phoneNumber) {
+		return false;
 	}
 
 	// Validate field types if present
+	if (contactName && typeof contactName !== "string") return false;
 	if (phoneNumber && typeof phoneNumber !== "string") return false;
 	if (message && typeof message !== "string") return false;
 	if (limit && typeof limit !== "number") return false;
